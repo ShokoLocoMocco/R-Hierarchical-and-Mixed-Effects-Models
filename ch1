@@ -1,0 +1,291 @@
+### Multi-level student data
+
+# Plot the data
+ggplot(data = student_data, aes(x = mathknow, y = mathgain)) +
+    geom_point() +
+    geom_smooth(method = lm)
+
+# Fit a linear model
+summary(lm(mathgain ~ mathknow , data =  student_data))
+
+
+### Exploring multiple-levels: Classrooms and schools
+
+# 1/4 Run the code to summarize the student data to the classroom level.
+# Fit a linear model using student_data where mathgain is predicted by mathknow.
+# Fit a linear model using class_data where mathgain_class is predicted by mathknow_class.
+
+
+# Summarize the student data at the classroom level
+class_data <-
+    student_data %>%
+    group_by(classid, schoolid) %>%
+    summarize(mathgain_class = mean(mathgain),
+              mathknow_class = mean(mathknow),
+              n_class = n(), .groups = "keep")
+
+# Model the math gain with the student-level data
+lm(mathgain ~ mathknow, data = student_data)
+
+# Model the math gain with the classroom-level data
+lm(mathgain_class ~ mathknow_class, data = class_data)
+
+# 2/4 Run the code to summarize the student data to the school level.
+# Fit a linear model using school_data where mathgain_school is predicted by mathknow_school.
+
+# Summarize the data at the school level
+school_data <-
+    student_data %>%
+    group_by(schoolid) %>%
+    summarize(mathgain_school = mean(mathgain),
+              mathknow_school = mean(mathknow),
+              n_school = n(), .groups = 'keep')
+
+# Model the data at the school-level
+lm(mathgain_school ~ mathknow_school, data = school_data)
+
+# 3/4 Run the code to summarize the class data to the school level (school by class, s_b_c for short)
+# Fit a linear model using s_by_c_data where mathgain_s_by_c is predicted by mathknow_s_by_c.
+# Compare all model outputs.
+
+# Summarize school by class (s_by_c)
+s_by_c_data <-
+    class_data %>%
+    group_by(schoolid) %>%
+    summarize(mathgain_s_by_c = mean(mathgain_class),
+              mathknow_s_by_c = mean(mathknow_class),
+              n_s_by_c = n(), .groups = 'keep')
+
+# Model the data at the school-level after summarizing
+# students at the class level
+lm(mathgain_s_by_c ~ mathknow_s_by_c, data = s_by_c_data)
+
+
+### Intercepts
+
+# 1/4 Use a linear model to estimate a global intercept for all student math gains mathgain. Recall that a global intercept is ~ 1 in R.
+# Use mean() to calculate the mean for all student math gains using summarize().
+
+
+
+# Use a linear model to estimate the global intercept
+lm(mathgain ~ 1, data = school_3_data)
+
+# Use summarize to calculate the mean
+school_3_data %>%
+    summarize(mean(mathgain))
+    
+
+# 2/4 Try to estimate an intercept for each classroom with the formula mathgain ~ classid using lm()
+# Notice R treats classid as a continuous variable.
+
+# Use a linear model to estimate mathgain in each classroom
+lm(mathgain ~ classid, data = school_3_data)
+
+# 3/4 mutate() classid to be a factor.
+# Rerun the model you fit in the previous step.
+
+# Change classid to be a factor
+school_3_data <-
+    school_3_data %>%
+    mutate(classid = factor(classid))
+
+# Use a linear model to estimate mathgain in each classroom
+lm(mathgain ~ classid, data = school_3_data)
+
+# 4/4 Calculate the means for each classroom using group_by(classid)
+# Estimate an intercept for each class using ~ classid - 1 in the lm() formula.
+
+# Change classid to be a factor
+school_3_data <-
+    school_3_data %>%
+    mutate(classid = factor(classid))
+
+# Calculate the mean of mathgain for each class
+school_3_data %>%
+    group_by(classid) %>%
+    summarize(n(), mathgain_class = mean(mathgain))
+
+# Estimate an intercept for each class
+lm(mathgain ~ classid - 1, data = school_3_data)
+
+
+
+### Slopes and multiple regression
+
+# 1/3 With the data school_3_data, use a linear model to examine how a student's math gain (mathgain) is predicted by the student's math score in kindergarten (mathkind).
+
+# Use a linear model to estimate how math kindergarten
+# scores predict math gains later
+lm(mathgain ~ mathkind, data = school_3_data)
+
+#2/3 With the data school_3_data, model a student's math gain (mathgain) being predicted by class (classid) and score (mathkind). Estimate a coefficient for each classroom using a - 1 at the end of your formula.
+
+# Build a multiple regression
+lm(mathgain ~ classid + mathkind - 1, data = school_3_data)
+
+# 3/3 With the data school_3_data, model a student's math gain (mathgain) predicted by class (classid) and score (mathkind).
+# Estimate a coefficient for each classroom using a - 1 at the end of your formula. Include an interaction term for classid and mathkind.
+
+
+### Random-effect intercepts
+
+# 1/3 Build a linear model with mathgain predicted by classid + mathkind using the student_data. Save the output as lm_out.
+# Build a linear mixed-effect model with mathgain predicted by mathkind as a fixed-effect and classid predicted as a random-effect using the student_data.
+# Run the existing code to extract out the mathkind coefficient details.
+
+# Build a liner model including class as fixed-effect model
+lm_out <- lm(mathgain ~ classid + mathkind, data = student_data)
+
+# Build a mixed-effect model including class id as a random-effect
+lmer_out <- lmer(mathgain ~ mathkind + (1 | classid), data = student_data)
+
+# Extract out the slope estimate for mathkind
+tidy(lm_out) %>%
+    filter(term == "mathkind")
+    
+tidy(lmer_out) %>%
+    filter(term == "mathkind")
+
+# 2/3 Run the code as written. It includes these steps:
+
+# Re-run the model from previous step to re-load it.
+# Extract predicted model values. This allow us to get the model outputs. This also extracts the data only from school 1 to help you better see an example with the data.
+# Plot the original data.
+# Use the predicted values to add lines to the previous plot.
+
+# Re-run the models to load their outputs
+lm_out <- lm(mathgain ~ classid + mathkind, data = student_data)
+lmer_out <- lmer(mathgain ~ mathkind + (1 | classid), data = student_data)
+
+# Add the predictions to the original data
+student_data_subset <-
+    student_data %>%
+    mutate(lm_predict = predict(lm_out),
+           lmer_predict = predict(lmer_out)) %>%
+    filter(schoolid == "1")
+
+# Plot the predicted values
+ggplot(student_data_subset,
+       aes(x = mathkind, y = mathgain, color = classid)) +
+    geom_point() +
+    geom_line(aes(x = mathkind, y = lm_predict)) +
+    geom_line(aes(x = mathkind, y = lmer_predict), linetype = 'dashed') +
+    xlab("Kindergarten math score") +
+    ylab("Math gain later in school") +
+    theme_bw() +
+    scale_color_manual("Class ID", values = c("red", "blue"))
+
+
+# 3/3 The standard error for mathkind was 0.0258 from the lm() and decreased to 0.0215 from the lmer().
+
+
+### Random-effect slopes
+
+# 1/2
+
+# Run the existing code to rescale mathkind to be mathkind_scaled.
+# Use the lmer() function from the lme4 package to fit a random-effects intercept model. This is similar to the model you fit before, but has mathgain predicted by mathkind_scaled. classid is the random-effect. Use the student_data.
+# Use the lmer() function from the lme4 package to fit a random-effects slope model. mathgain is predicted by mathkind_scaled as a random-effect slope and classid as a random-effect group.
+
+# 2/2 
+
+# First, re-run the model from previous step to re-load it.
+# Second, extract out the predicted model values. You will use these to plot the expected (or predicted) values from the model. Only the data from school 1 is plotted to make it easier to view plot.
+# Third, plot the original data.
+
+# Rescale mathkind to make the model more stable
+student_data <-
+	student_data %>%
+    mutate(mathkind_scaled = scale(mathkind))
+
+# Re-run the models to load their outputs
+lmer_intercept <- lmer(mathgain ~ mathkind_scaled + (1 | classid),
+                       data = student_data)
+lmer_slope     <- lmer(mathgain ~ (mathkind_scaled | classid),
+                       data = student_data)
+
+# Add the predictions to the original data
+student_data_subset <-
+    student_data %>%
+    mutate(lmer_intercept = predict(lmer_intercept),
+           lmer_slope = predict(lmer_slope)) %>%
+    filter(schoolid == "1")
+
+# Plot the predicted values
+ggplot(student_data_subset,
+       aes(x = mathkind_scaled, y = mathgain, color = classid)) +
+    geom_point() +
+    geom_line(aes(x = mathkind_scaled, y = lmer_intercept)) +
+    geom_line(aes(x = mathkind_scaled, y = lmer_slope), linetype = 'dashed') +
+    theme_bw() +
+    scale_color_manual("Class ID", values = c("red", "blue"))
+
+
+# Building the school model
+
+# Does the sex of a student impact their knowledge gain?
+# Does the teacher's training impact the gain and does the teacher's math knowledge impact the gain?
+# As part of this model, you will also account for other possible predictors including:
+
+# Does a student's math knowledge in kindergarten impact their gain?
+# Does a school's socio-economic status impact student gains?
+
+# Using the student_data, build a model and save the output as lmer_classroom
+# Have mathgain predicted by mathknow, mathprep, sex, mathkind and ses as fixed-effects
+# Include classid as a random-effect.
+# Print the model's output.
+
+# Build the model
+lmer_classroom <- lmer(mathgain ~ mathknow + mathprep + sex + mathkind + ses + (1| classid), data = student_data)
+
+# Print the model's output
+print(lmer_classroom)
+
+
+# Interpreting the school model
+
+# 1/3
+
+# The lmer model, lmer_classroom, you built in the previous exercise is loaded.
+# Using the tidy() function to extract the model's coefficients including confidence intervals by setting conf.int to be TRUE.
+# Save the Tidy outputs as lmer_coef and print this object.
+
+# Extract coefficents
+lmer_coef <-
+    tidy(lmer_classroom, conf.int = TRUE)
+
+# Print coefficents
+print(lmer_coef)
+
+
+# 2/3 
+
+# Add lmer_coef to the code.
+# Leave the rest of the code as is to examine the outputs.
+
+# Extract coefficents
+lmer_coef <-
+    tidy(lmer_classroom, conf.int = TRUE)
+
+# Plot results
+lmer_coef %>%
+    filter(effect == "fixed" & term != "(Intercept)") %>%
+    ggplot(., aes(x = term, y = estimate,
+                  ymin = conf.low, ymax = conf.high)) +
+    geom_hline(yintercept = 0, color = 'red') + 
+    geom_point() +
+    geom_linerange() +
+    coord_flip() +
+    theme_bw() +
+    ylab("Coefficient estimate and 95% CI") +
+    xlab("Regression coefficient")
+
+
+# 3/3
+
+# ses and mathkind differed from zero.
+
+
+
+
